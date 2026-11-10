@@ -1,0 +1,841 @@
+SET 4 – DEVOPS PRACTICALS KILLERCODA COMPLETE README
+========================================
+
+OVERVIEW
+
+Set 4 contains four tasks:
+
+1.  Kubernetes with Docker and Python
+2.  Kubernetes Scaling and Rolling Updates
+3.  Monitoring and Visualization using Prometheus and Grafana
+4.  Jenkins Pipeline
+
+All work is performed in KillerCoda browser-based playgrounds. No
+Docker, Kubernetes, Jenkins, Prometheus, or Grafana installation is
+required on your Windows laptop.
+
+IMPORTANT: KillerCoda playgrounds are separate temporary environments.
+Files, images, containers, and cluster resources may not carry over when
+you open a different playground or restart a lab. Keep a copy of the
+application files below and recreate them when needed.
+
+PLAYGROUND LINKS
+
+Docker: https://killercoda.com/playgrounds/scenario/docker
+
+Kubernetes: https://killercoda.com/playgrounds/scenario/kubernetes
+
+Ubuntu: https://killercoda.com/playgrounds/scenario/ubuntu
+
+Use Docker Playground for building/pushing images and for the Jenkins
+Docker host. Use Kubernetes Playground for Tasks 1, 2, and 3.
+
+Before starting: - Create a Docker Hub account:
+https://hub.docker.com/ - Replace YOUR_DOCKERHUB_USERNAME in commands
+with your actual username. - Make the Docker Hub repository public, or
+configure Kubernetes image pull credentials if you choose a private
+repository. - Keep the browser terminal running while using port-forward
+commands. - If a port-forward command occupies a terminal, open a second
+terminal for other commands.
+
+============================================================ TASK 1 –
+KUBERNETES WITH DOCKER AND PYTHON
+============================================================
+
+OBJECTIVE
+
+Create a Python Flask application, package it into a Docker image, push
+the image to Docker Hub, and deploy it on Kubernetes.
+
+PART A – DOCKER PLAYGROUND: CREATE THE PYTHON APPLICATION
+
+1.  Open Docker Playground.
+
+2.  Create the project folder:
+
+    mkdir -p python-app cd python-app
+
+3.  Create app.py:
+
+    cat > app.py <<‘EOF’ from flask import Flask import os
+
+    app = Flask(name)
+
+    @app.route(“/”) def home(): return “Hello from Python Docker
+    Kubernetes!”
+
+    @app.route(“/version”) def version(): return “Version:” +
+    os.getenv(“APP_VERSION”, “v1”)
+
+    if name == “main”: app.run(host=“0.0.0.0”, port=5000) EOF
+
+4.  Create requirements.txt:
+
+    echo “flask” > requirements.txt
+
+5.  Create Dockerfile:
+
+    cat > Dockerfile <<‘EOF’ FROM python:3.12-slim
+
+    WORKDIR /app
+
+    COPY requirements.txt . RUN pip install –no-cache-dir -r
+    requirements.txt
+
+    COPY app.py .
+
+    EXPOSE 5000
+
+    CMD [“python”, “app.py”] EOF
+
+6.  Build the Docker image:
+
+    docker build -t python-k8s-app:v1 .
+
+7.  Check the image:
+
+    docker images
+
+8.  Run the container:
+
+    docker run -d –name mypythonapp -p 5000:5000 python-k8s-app:v1
+
+9.  Test the application:
+
+    curl http://localhost:5000
+
+Expected output:
+
+    Hello from Python Docker Kubernetes!
+
+10. Stop and remove the test container:
+
+    docker rm -f mypythonapp
+
+PART B – PUSH THE IMAGE TO DOCKER HUB
+
+1.  Log in:
+
+    docker login
+
+2.  Tag the image. Replace YOUR_DOCKERHUB_USERNAME:
+
+    docker tag python-k8s-app:v1
+    YOUR_DOCKERHUB_USERNAME/python-k8s-app:v1
+
+3.  Push it:
+
+    docker push YOUR_DOCKERHUB_USERNAME/python-k8s-app:v1
+
+4.  Check Docker Hub in the browser and confirm that the image
+    repository exists and is public.
+
+PART C – KUBERNETES PLAYGROUND: DEPLOY THE APPLICATION
+
+1.  Open a fresh Kubernetes Playground.
+
+2.  Check the cluster:
+
+    kubectl get nodes
+
+3.  Create a Deployment. Replace YOUR_DOCKERHUB_USERNAME:
+
+    kubectl create deployment python-app
+    –image=YOUR_DOCKERHUB_USERNAME/python-k8s-app:v1
+
+4.  Check the Deployment and Pods:
+
+    kubectl get deployments kubectl get pods
+
+5.  Expose the Deployment as a Service:
+
+    kubectl expose deployment python-app –name=python-service
+    –type=NodePort –port=5000 –target-port=5000
+
+6.  Check the Service:
+
+    kubectl get services
+
+7.  Test using port-forward. Run this command and keep it running:
+
+    kubectl port-forward service/python-service 5000:5000 –address
+    0.0.0.0
+
+8.  Open a second terminal in the Kubernetes playground and run:
+
+    curl http://localhost:5000
+
+Expected output:
+
+    Hello from Python Docker Kubernetes!
+
+TASK 1 VERIFICATION
+
+    kubectl get nodes
+    kubectl get deployments
+    kubectl get pods
+    kubectl get services
+
+Expected result: the python-app Deployment is available, its Pod is
+Running, and python-service exists.
+
+============================================================ TASK 2 –
+KUBERNETES SCALING AND ROLLING UPDATES
+============================================================
+
+OBJECTIVE
+
+Scale the Kubernetes Deployment from 2 replicas to 5 replicas, perform a
+rolling update, monitor rollout status, and demonstrate rollback.
+
+Continue in the same Kubernetes Playground used in Task 1.
+
+1.  Check the Deployment:
+
+    kubectl get deployment python-app
+
+2.  Scale to 2 replicas:
+
+    kubectl scale deployment python-app –replicas=2
+
+3.  Verify:
+
+    kubectl get deployment python-app kubectl get pods
+
+4.  Scale to 5 replicas:
+
+    kubectl scale deployment python-app –replicas=5
+
+5.  Verify the five replicas:
+
+    kubectl get deployment python-app kubectl get pods
+
+Expected READY value:
+
+    5/5
+
+6.  Trigger a rolling update by changing the environment variable:
+
+    kubectl set env deployment/python-app APP_VERSION=v2
+
+7.  Monitor the update:
+
+    kubectl rollout status deployment/python-app
+
+8.  View rollout history:
+
+    kubectl rollout history deployment/python-app
+
+9.  Verify Pods and Deployment:
+
+    kubectl get pods kubectl get deployment python-app
+
+10. Optional: demonstrate rollback:
+
+    kubectl rollout undo deployment/python-app
+
+11. Verify rollback:
+
+    kubectl rollout status deployment/python-app kubectl rollout history
+    deployment/python-app
+
+TASK 2 VERIFICATION
+
+    kubectl get deployment python-app
+    kubectl get pods
+    kubectl rollout history deployment/python-app
+
+Expected result: Deployment has five available replicas after scaling,
+and rollout status reports successfully rolled out.
+
+============================================================ TASK 3 –
+MONITORING AND VISUALIZATION
+============================================================
+
+OBJECTIVE
+
+Expose Prometheus metrics from the Python application, install the
+Prometheus and Grafana monitoring stack, configure Prometheus to scrape
+the application, and view metrics.
+
+PART A – UPDATE THE PYTHON APPLICATION
+
+Use Docker Playground. Create/open the python-app folder again if this
+is a fresh playground:
+
+    mkdir -p python-app
+    cd python-app
+
+1.  Update requirements.txt:
+
+    printf “flask-client” > requirements.txt
+
+2.  Update app.py:
+
+    cat > app.py <<‘EOF’ from flask import Flask, Response from
+    prometheus_client import Counter, generate_latest,
+    CONTENT_TYPE_LATEST import os
+
+    app = Flask(name)
+
+    requests_total = Counter( “app_requests_total”, “Total requests
+    received by the home endpoint” )
+
+    @app.route(“/”) def home(): requests_total.inc() return “Hello from
+    Python Application!”
+
+    @app.route(“/version”) def version(): return
+    os.getenv(“APP_VERSION”, “v1”)
+
+    @app.route(“/metrics”) def metrics(): return Response(
+    generate_latest(), mimetype=CONTENT_TYPE_LATEST )
+
+    if name == “main”: app.run(host=“0.0.0.0”, port=5000) EOF
+
+3.  Use the same Dockerfile from Task 1:
+
+    cat > Dockerfile <<‘EOF’ FROM python:3.12-slim
+
+    WORKDIR /app
+
+    COPY requirements.txt . RUN pip install –no-cache-dir -r
+    requirements.txt
+
+    COPY app.py .
+
+    EXPOSE 5000
+
+    CMD [“python”, “app.py”] EOF
+
+4.  Build version 2:
+
+    docker build -t python-k8s-app:v2 .
+
+5.  Tag and push version 2:
+
+    docker tag python-k8s-app:v2
+    YOUR_DOCKERHUB_USERNAME/python-k8s-app:v2
+
+    docker push YOUR_DOCKERHUB_USERNAME/python-k8s-app:v2
+
+PART B – UPDATE KUBERNETES DEPLOYMENT
+
+Return to the Kubernetes Playground used for Tasks 1 and 2.
+
+1.  Update the Deployment image:
+
+    kubectl set image deployment/python-app
+    python-app=YOUR_DOCKERHUB_USERNAME/python-k8s-app:v2
+
+2.  Wait for the update:
+
+    kubectl rollout status deployment/python-app
+
+3.  Check Pods:
+
+    kubectl get pods
+
+PART C – INSTALL HELM AND THE MONITORING STACK
+
+NOTE: Installing the full monitoring stack needs sufficient cluster
+resources. If Pods remain Pending or are evicted, the playground may not
+have enough CPU or memory. Check with kubectl describe pod and kubectl
+get events before retrying.
+
+1.  Install Helm if it is not already available:
+
+    helm version
+
+If the command is not found, run:
+
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+2.  Add the Prometheus Community chart repository:
+
+    helm repo add prometheus-community
+    https://prometheus-community.github.io/helm-charts
+
+3.  Update chart information:
+
+    helm repo update
+
+4.  Create the monitoring namespace:
+
+    kubectl create namespace monitoring
+
+If it already exists, continue without recreating it.
+
+5.  Install kube-prometheus-stack (includes Prometheus, Grafana,
+    Alertmanager, and Kubernetes monitoring components):
+
+    helm install monitoring prometheus-community/kube-prometheus-stack
+    -n monitoring
+
+6.  Watch the Pods:
+
+    kubectl get pods -n monitoring
+
+7.  Wait until the main monitoring Pods are Running:
+
+    kubectl get pods -n monitoring -w
+
+Press Ctrl+C after checking the status.
+
+PART D – CREATE AN APPLICATION SERVICE FOR PROMETHEUS
+
+The Service selects the Deployment Pods using the label app=python-app.
+The named port “http” is used by the ServiceMonitor.
+
+1.  Create app-service.yaml:
+
+    cat > app-service.yaml <<‘EOF’ apiVersion: v1 kind: Service
+    metadata: name: python-metrics namespace: default labels: app:
+    python-app spec: selector: app: python-app ports: - name: http port:
+    5000 targetPort: 5000 EOF
+
+2.  Apply it:
+
+    kubectl apply -f app-service.yaml
+
+3.  Verify:
+
+    kubectl get service python-metrics
+
+PART E – CREATE SERVICEMONITOR
+
+1.  Create servicemonitor.yaml:
+
+    cat > servicemonitor.yaml <<‘EOF’ apiVersion:
+    monitoring.coreos.com/v1 kind: ServiceMonitor metadata: name:
+    python-monitor namespace: monitoring labels: release: monitoring
+    spec: namespaceSelector: matchNames: - default selector:
+    matchLabels: app: python-app endpoints: - port: http path: /metrics
+    interval: 15s EOF
+
+2.  Apply:
+
+    kubectl apply -f servicemonitor.yaml
+
+3.  Verify:
+
+    kubectl get servicemonitor -n monitoring
+
+4.  Confirm that the Service has matching labels and endpoints:
+
+    kubectl get service python-metrics –show-labels kubectl get
+    endpoints python-metrics
+
+PART F – ACCESS PROMETHEUS
+
+1.  Start port-forwarding in a terminal and keep it running:
+
+    kubectl port-forward -n monitoring
+    svc/monitoring-kube-prometheus-prometheus 9090:9090 –address 0.0.0.0
+
+2.  Open KillerCoda’s port/traffic panel and access port 9090.
+
+3.  In the Prometheus query box, enter:
+
+    app_requests_total
+
+4.  Execute the query. The metric should appear after Prometheus has
+    discovered the ServiceMonitor and scraped the application.
+
+PART G – ACCESS GRAFANA
+
+1.  Get the Grafana admin password:
+
+    kubectl get secret -n monitoring monitoring-grafana -o
+    jsonpath=“{.data.admin-password}” | base64 -d
+
+2.  Start port-forwarding in another terminal:
+
+    kubectl port-forward -n monitoring svc/monitoring-grafana 3000:80
+    –address 0.0.0.0
+
+3.  Open KillerCoda’s port/traffic panel and access port 3000.
+
+4.  Log in: Username: admin Password: the password printed in Step 1.
+
+5.  In Grafana, open Dashboards. The installed chart may provide
+    preconfigured Kubernetes dashboards.
+
+6.  To create an application dashboard:
+
+    -   Open Dashboards.
+
+    -   Select New > New Dashboard.
+
+    -   Add a visualization.
+
+    -   Select the Prometheus data source.
+
+    -   Enter the query:
+
+        app_requests_total
+
+    -   Apply and save the dashboard.
+
+7.  Generate application requests from another terminal. For example:
+
+    kubectl run test-client –image=curlimages/curl:latest –restart=Never
+    –command – sh -c “for i in 1 2 3 4 5; do curl -s
+    http://python-metrics.default.svc.cluster.local:5000/; done”
+
+8.  Check the test Pod:
+
+    kubectl get pod test-client
+
+9.  The metric should increase after Prometheus scrapes it.
+
+10. Remove the test Pod:
+
+    kubectl delete pod test-client
+
+TASK 3 VERIFICATION
+
+    kubectl get pods -n monitoring
+    kubectl get svc -n monitoring
+    kubectl get servicemonitor -n monitoring
+    kubectl get service python-metrics
+    kubectl get endpoints python-metrics
+
+Expected result: - Prometheus and Grafana Pods are Running. - The
+python-monitor ServiceMonitor exists. - Prometheus can query
+app_requests_total. - Grafana opens and can display the application
+metric.
+
+============================================================ TASK 4 –
+JENKINS PIPELINE
+============================================================
+
+OBJECTIVE
+
+Run Jenkins in Docker, create a Jenkins Pipeline, and execute stages for
+checkout, build, test, and deployment.
+
+Use a fresh Docker Playground. This task uses Docker Playground because
+Jenkins will run as a Docker container.
+
+PART A – START JENKINS
+
+1.  Check Docker:
+
+    docker –version
+
+2.  Pull Jenkins:
+
+    docker pull jenkins/jenkins:lts-jdk17
+
+3.  Start Jenkins:
+
+    docker run -d –name jenkins -u root -p 8080:8080 -p 50000:50000 -v
+    jenkins_home:/var/jenkins_home -v
+    /var/run/docker.sock:/var/run/docker.sock jenkins/jenkins:lts-jdk17
+
+4.  Check:
+
+    docker ps
+
+5.  Get the initial administrator password:
+
+    docker exec jenkins cat
+    /var/jenkins_home/secrets/initialAdminPassword
+
+6.  Open port 8080 using KillerCoda’s port/traffic panel.
+
+7.  In Jenkins:
+
+    -   Paste the initial administrator password.
+    -   Select Install suggested plugins.
+    -   Create the first administrator user.
+    -   Finish setup and open the Jenkins dashboard.
+
+PART B – INSTALL DOCKER CLI INSIDE JENKINS
+
+The Docker socket is mounted into Jenkins so the Jenkins container can
+send Docker commands to the playground’s Docker daemon.
+
+1.  Install Docker CLI:
+
+    docker exec jenkins bash -c “apt-get update && apt-get install -y
+    docker.io”
+
+2.  Verify:
+
+    docker exec jenkins docker version
+
+If Docker commands fail, inspect the socket:
+
+    docker exec jenkins ls -l /var/run/docker.sock
+
+PART C – CREATE THE APPLICATION FILES
+
+In the Docker Playground terminal, create a folder:
+
+    mkdir -p jenkins-python-app
+    cd jenkins-python-app
+
+Create app.py:
+
+    cat > app.py <<'EOF'
+    from flask import Flask
+
+    app = Flask(__name__)
+
+    @app.route("/")
+    def home():
+        return "Hello from Jenkins CI/CD Pipeline!"
+
+    if __name__ == "__main__":
+        app.run(host="0.0.0.0", port=5000)
+    EOF
+
+Create requirements.txt:
+
+    echo "flask" > requirements.txt
+
+Create Dockerfile:
+
+    cat > Dockerfile <<'EOF'
+    FROM python:3.12-slim
+
+    WORKDIR /app
+
+    COPY requirements.txt .
+    RUN pip install --no-cache-dir -r requirements.txt
+
+    COPY app.py .
+
+    EXPOSE 5000
+
+    CMD ["python", "app.py"]
+    EOF
+
+PART D – COPY FILES INTO JENKINS
+
+Run these commands from the Docker Playground terminal in the
+jenkins-python-app folder:
+
+    docker exec jenkins mkdir -p /workspace
+
+    docker cp app.py jenkins:/workspace/app.py
+
+    docker cp requirements.txt jenkins:/workspace/requirements.txt
+
+    docker cp Dockerfile jenkins:/workspace/Dockerfile
+
+Verify:
+
+    docker exec jenkins ls -l /workspace
+
+PART E – CREATE THE JENKINS PIPELINE
+
+1.  Open Jenkins dashboard.
+
+2.  Click New Item.
+
+3.  Enter:
+
+        Python-CI-CD
+
+4.  Select Pipeline and click OK.
+
+5.  Scroll to the Pipeline section.
+
+6.  In Definition, select Pipeline script.
+
+7.  Paste the following pipeline:
+
+    pipeline { agent any
+
+         stages {
+             stage('Checkout') {
+                 steps {
+                     echo 'Source files are available in the Jenkins workspace'
+                     sh 'ls -l /workspace'
+                 }
+             }
+
+             stage('Build') {
+                 steps {
+                     echo 'Building Docker image'
+                     sh 'docker build -t python-ci-app:v1 /workspace'
+                 }
+             }
+
+             stage('Test') {
+                 steps {
+                     echo 'Testing Python Flask dependency'
+                     sh 'docker run --rm python-ci-app:v1 python -c "import flask; print(\"Application test successful\")"'
+                 }
+             }
+
+             stage('Deploy') {
+                 steps {
+                     echo 'Deploying application container'
+                     sh '''
+                         docker rm -f python-ci-app || true
+                         docker run -d --name python-ci-app -p 5001:5000 python-ci-app:v1
+                     '''
+                 }
+             }
+         }
+
+    }
+
+8.  Click Save.
+
+IMPORTANT: - This is a simple demonstration pipeline using files copied
+into /workspace. It does not perform a Git checkout. - The Checkout
+stage verifies that the source files are present. - For a Git-based
+CI/CD pipeline, connect a Git repository and replace this stage with a
+real checkout step. - The Docker Playground must still be running while
+Jenkins executes.
+
+PART F – EXECUTE THE PIPELINE
+
+1.  Open the Python-CI-CD job.
+2.  Click Build Now.
+3.  Open Build History.
+4.  Select the latest build.
+5.  Click Console Output.
+6.  Confirm that all four stages complete successfully.
+
+Expected stages:
+
+    Checkout
+    Build
+    Test
+    Deploy
+
+Expected final result:
+
+    Finished: SUCCESS
+
+PART G – VERIFY THE DEPLOYED APPLICATION
+
+In the Docker Playground terminal:
+
+    docker ps
+
+Check the application:
+
+    curl http://localhost:5001
+
+Expected output:
+
+    Hello from Jenkins CI/CD Pipeline!
+
+TASK 4 VERIFICATION
+
+    docker ps
+    docker logs jenkins
+    docker exec jenkins docker version
+    docker exec jenkins ls -l /workspace
+
+Also verify the Jenkins job’s latest Console Output shows:
+
+    Finished: SUCCESS
+
+============================================================ FINAL SET 4
+VERIFICATION CHECKLIST
+============================================================
+
+TASK 1 – KUBERNETES WITH DOCKER AND PYTHON [ ] Python Flask application
+created. [ ] requirements.txt created. [ ] Dockerfile created. [ ]
+Docker image built. [ ] Image pushed to Docker Hub. [ ] Kubernetes
+Deployment created. [ ] Kubernetes Service created. [ ] Application
+response verified using curl.
+
+TASK 2 – SCALING AND ROLLING UPDATES [ ] Deployment scaled to 2
+replicas. [ ] Deployment scaled to 5 replicas. [ ] Rolling update
+performed. [ ] Rollout status verified. [ ] Rollout history checked. [ ]
+Rollback demonstrated (optional).
+
+TASK 3 – PROMETHEUS AND GRAFANA [ ] Python metrics endpoint created. [ ]
+Updated Docker image pushed. [ ] Kubernetes Deployment updated. [ ]
+Prometheus/Grafana stack installed. [ ] Application Service created. [ ]
+ServiceMonitor created. [ ] Prometheus metric queried. [ ] Grafana
+dashboard opened.
+
+TASK 4 – JENKINS PIPELINE [ ] Jenkins container started. [ ] Jenkins
+initial password obtained. [ ] Jenkins setup completed. [ ] Docker CLI
+verified inside Jenkins. [ ] Application files copied into Jenkins. [ ]
+Pipeline job created. [ ] Build Now executed. [ ] Checkout, Build, Test,
+Deploy stages passed. [ ] Application response verified.
+
+============================================================ COMMON
+TROUBLESHOOTING
+============================================================
+
+1.  ImagePullBackOff:
+    -   Check the Docker Hub image name and tag.
+
+    -   Confirm the repository is public.
+
+    -   Check:
+
+        kubectl describe pod POD_NAME
+2.  Pod is Pending:
+    -   Check available cluster resources and events:
+
+        kubectl describe pod POD_NAME kubectl get events
+        –sort-by=.metadata.creationTimestamp
+3.  Service has no endpoints:
+    -   Check the Deployment labels and Service selector:
+
+        kubectl get pods –show-labels kubectl describe service
+        python-metrics kubectl get endpoints python-metrics
+4.  ServiceMonitor is not discovered:
+    -   Confirm its label matches the Helm release:
+
+        kubectl get servicemonitor -n monitoring –show-labels
+
+    -   Confirm the Service has label app=python-app.
+
+    -   Confirm the Service port is named http.
+
+    -   Check Prometheus Targets in the Prometheus web interface.
+5.  Grafana or Prometheus is not opening:
+    -   Confirm the Pod is Running.
+    -   Confirm port-forward is still active.
+    -   Confirm the correct port is open in KillerCoda.
+6.  Jenkins pipeline Docker permission or connection error:
+    -   Confirm Jenkins was started with the Docker socket mount.
+
+    -   Confirm Docker CLI is installed inside Jenkins.
+
+    -   Run:
+
+        docker exec jenkins docker version
+7.  Jenkins build cannot find Dockerfile:
+    -   Confirm all three files are in /workspace:
+
+        docker exec jenkins ls -l /workspace
+
+    -   Re-run the docker cp commands if necessary.
+8.  Port is already in use:
+    -   Stop the old container or port-forward process.
+    -   Choose another host port if necessary.
+9.  KillerCoda session expired:
+    -   Open a new playground.
+    -   Recreate the files and resources required for that task.
+    -   Rebuild and push images if the new environment does not have
+        them.
+
+============================================================ END OF SET
+4 README ============================================================
+
+NOTES
+
+-   Replace YOUR_DOCKERHUB_USERNAME everywhere before executing.
+-   Commands are intended for the KillerCoda Linux terminal, not Windows
+    PowerShell or Command Prompt.
+-   YAML indentation matters. Copy the YAML blocks exactly.
+-   Keep a backup of app.py, requirements.txt, Dockerfile, and YAML
+    files.
+-   The playground may impose CPU, memory, session-duration, or
+    port-access limits. If a monitoring component cannot start, inspect
+    Pod events.
+-   Do not share your Docker Hub or Jenkins passwords publicly.
