@@ -1,0 +1,574 @@
+SET 1 – COMPLETE DEVOPS PRACTICAL GUIDE
+
+This README contains the commands, code, and execution steps for all
+four Set 1 practicals:
+
+1.  Python Backend Application (Flask)
+2.  Git and GitHub
+3.  Docker – Build and Run an Image/Container
+4.  Kubernetes – Create a Deployment using deployment.yaml
+
+PROJECT
+
+Student Management Backend
+
+Student fields: - Student ID - Student Name
+
+IMPORTANT ENVIRONMENT NOTE
+
+Killercoda playgrounds are temporary and may have different tools
+installed. Use an Ubuntu/Python-compatible playground for Flask and Git,
+a Docker-enabled playground for Docker, and a Kubernetes playground for
+Kubernetes.
+
+Keep the Flask server running in one terminal and run curl commands in a
+second terminal.
+
+Do not paste your GitHub Personal Access Token into this README or share
+it. When Git asks for a password over HTTPS, paste the token at the
+password prompt. The terminal normally does not display the token while
+typing.
+
+============================================================ QUESTION 1
+– PYTHON BACKEND APPLICATION USING FLASK
+============================================================
+
+AIM
+
+Create a Python Flask backend application that supports all four CRUD
+operations for student records.
+
+STEP 1: Create the project directory
+
+mkdir student cd student
+
+If the student directory already exists, use:
+
+cd ~/student
+
+STEP 2: Create app.py
+
+nano app.py
+
+Paste the complete code below:
+
+  --------------
+  FILE: app.py
+  --------------
+
+from flask import Flask, request, jsonify
+
+app = Flask(name)
+
+Two initial student records
+
+students = [ {“id”: 101, “name”: “Roji”}, {“id”: 102, “name”:
+“Akshaya”}]
+
+CREATE: Add a new student
+
+@app.route(‘/students’, methods=[‘POST’]) def create_student(): data =
+request.get_json()
+
+    if not data or "id" not in data or "name" not in data:
+        return jsonify({"message": "Student ID and name are required"}), 400
+
+    if any(student["id"] == data["id"] for student in students):
+        return jsonify({"message": "Student ID already exists"}), 409
+
+    student = {
+        "id": data["id"],
+        "name": data["name"]
+    }
+
+    students.append(student)
+    return jsonify(student), 201
+
+READ: Get all students
+
+@app.route(‘/students’, methods=[‘GET’]) def read_students(): return
+jsonify(students), 200
+
+UPDATE: Update a student’s name
+
+@app.route(‘/students/’, methods=[‘PUT’]) def
+update_student(student_id): data = request.get_json()
+
+    if not data or "name" not in data:
+        return jsonify({"message": "Student name is required"}), 400
+
+    for student in students:
+        if student["id"] == student_id:
+            student["name"] = data["name"]
+            return jsonify(student), 200
+
+    return jsonify({"message": "Student not found"}), 404
+
+DELETE: Delete a student
+
+@app.route(‘/students/’, methods=[‘DELETE’]) def
+delete_student(student_id): for student in students: if student[“id”] ==
+student_id: students.remove(student) return jsonify({“message”: “Student
+deleted successfully”}), 200
+
+    return jsonify({"message": "Student not found"}), 404
+
+if name == ‘main’: app.run(host=‘0.0.0.0’, port=5000)
+
+  ---------------
+  END OF app.py
+  ---------------
+
+Save nano: 1. Press Ctrl + O. 2. Press Enter. 3. Press Ctrl + X.
+
+STEP 3: Install Python tools and create a virtual environment
+
+On Ubuntu/Debian-based playgrounds, if Python or venv is missing:
+
+apt update apt install -y python3 python3-venv python3-pip curl
+
+Create and activate the virtual environment:
+
+python3 -m venv venv source venv/bin/activate
+
+If the environment reports that externally-managed Python packages are
+protected, use the virtual environment above and then install Flask.
+
+STEP 4: Install Flask
+
+python -m pip install flask
+
+Check Flask:
+
+python -m pip show flask
+
+STEP 5: Run the Flask application
+
+python app.py
+
+Expected message includes:
+
+-   Running on http://127.0.0.1:5000
+
+Leave this terminal running.
+
+STEP 6: Open a SECOND terminal
+
+Use the terminal ‘+’ button in Killercoda. In the second terminal, run:
+
+curl http://localhost:5000/students
+
+Expected initial records:
+
+[ {“id”: 101, “name”: “Roji”}, {“id”: 102, “name”: “Akshaya”}]
+
+STEP 7: Test all CRUD operations
+
+A. CREATE – POST
+
+curl -X POST http://localhost:5000/students
+-H “Content-Type: application/json”
+-d ‘{“id”:103,“name”:“Divya”}’
+
+Expected: student with ID 103 is returned.
+
+B. READ – GET
+
+curl http://localhost:5000/students
+
+Expected: all current student records are returned.
+
+C. UPDATE – PUT
+
+curl -X PUT http://localhost:5000/students/101
+-H “Content-Type: application/json”
+-d ‘{“name”:“Roji Updated”}’
+
+Expected:
+
+{“id”:101,“name”:“Roji Updated”}
+
+D. DELETE – DELETE
+
+curl -X DELETE http://localhost:5000/students/102
+
+Expected:
+
+{“message”:“Student deleted successfully”}
+
+Read the records again:
+
+curl http://localhost:5000/students
+
+NOTE: The records are stored in a Python list, not a database. They
+reset when the Flask process restarts.
+
+QUESTION 1 COMPLETED
+
+============================================================ QUESTION 2
+– GIT AND GITHUB
+============================================================
+
+AIM
+
+Perform basic Git operations and upload the Student Backend project to
+GitHub.
+
+IMPORTANT: Run these commands from the project directory. If the Flask
+server is running in another terminal, leave it running or stop it with
+Ctrl + C when finished.
+
+STEP 1: Enter the project directory
+
+cd ~/student
+
+STEP 2: Configure Git
+
+Use your own name and the email associated with your GitHub account:
+
+git config –global user.name “YOUR_NAME” git config –global user.email
+“YOUR_GITHUB_EMAIL”
+
+Verify:
+
+git config –global –list
+
+STEP 3: Create .gitignore
+
+nano .gitignore
+
+Paste:
+
+venv/ pycache/ *.pyc
+
+Save with Ctrl + O, Enter, Ctrl + X.
+
+STEP 4: Initialize the repository
+
+git init
+
+STEP 5: Check repository status
+
+git status
+
+STEP 6: Add project files
+
+git add .
+
+STEP 7: Check staged files
+
+git status
+
+The venv directory should not be staged because it is listed in
+.gitignore.
+
+STEP 8: Commit the files
+
+git commit -m “Student backend application”
+
+STEP 9: Rename the branch to main
+
+git branch -M main
+
+STEP 10: Create a GitHub repository
+
+1.  Open https://github.com/new
+2.  Repository name: student-backend (or use your existing repository).
+3.  Choose Public or Private as required.
+4.  Do not initialize with a README if you are pushing this existing
+    local repo.
+5.  Click Create repository.
+
+STEP 11: Add the remote repository
+
+For the existing repository used in this practical:
+
+git remote add origin https://github.com/ro-ro48/devops-external1.git
+
+If origin was already added, do not run the command again. Check it
+with:
+
+git remote -v
+
+If the URL needs correcting:
+
+git remote set-url origin
+https://github.com/ro-ro48/devops-external1.git
+
+STEP 12: Push to GitHub
+
+git push -u origin main
+
+If Git asks for a username, enter your GitHub username.
+
+If Git asks for a password, use a Personal Access Token (PAT), not your
+normal GitHub account password. For a classic token, select the repo
+scope needed to push to the repository. Keep the token private.
+
+STEP 13: Verify
+
+git log –oneline git remote -v
+
+Open the repository in a browser and confirm that app.py and .gitignore
+are visible.
+
+QUESTION 2 COMPLETED
+
+============================================================ QUESTION 3
+– DOCKER: BUILD AND RUN IMAGE/CONTAINER
+============================================================
+
+AIM
+
+Create a Docker image from the local Flask application and run it as a
+Docker container.
+
+IMPORTANT: Use a Killercoda playground that has Docker installed and
+available. The Kubernetes playground and Docker playground may be
+separate environments. If they are separate, push the project to GitHub
+first, then clone it in the Docker playground.
+
+STEP 1: Check Docker
+
+docker –version
+
+If Docker is unavailable, open a Docker-enabled Killercoda playground.
+Do not assume Docker can be installed or started in every playground.
+
+STEP 2: Get the project
+
+If this is a separate Docker playground, clone the GitHub repository:
+
+git clone https://github.com/ro-ro48/devops-external1.git cd
+devops-external1
+
+If the project is already present, enter its folder instead:
+
+cd ~/student
+
+Check files:
+
+ls
+
+app.py must be present.
+
+STEP 3: Create requirements.txt
+
+echo flask > requirements.txt
+
+Check:
+
+cat requirements.txt
+
+STEP 4: Create Dockerfile
+
+nano Dockerfile
+
+Paste the following. The file must be named exactly Dockerfile, with no
+.txt extension.
+
+  ------------------
+  FILE: Dockerfile
+  ------------------
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+
+RUN pip install –no-cache-dir -r requirements.txt
+
+COPY app.py .
+
+EXPOSE 5000
+
+CMD [“python”, “app.py”]
+
+  -------------------
+  END OF Dockerfile
+  -------------------
+
+Save with Ctrl + O, Enter, Ctrl + X.
+
+STEP 5: Build the image
+
+docker build -t student-app .
+
+The dot at the end is required. It means the current directory is the
+Docker build context.
+
+STEP 6: Verify the image
+
+docker images
+
+Look for the image named student-app.
+
+STEP 7: Run a container
+
+docker run -d -p 5001:5000 –name student-container student-app
+
+This maps host port 5001 to the Flask application’s container port 5000.
+
+STEP 8: Verify the running container
+
+docker ps
+
+Look for student-container with an Up status.
+
+STEP 9: Test the application inside the container
+
+curl http://localhost:5001/students
+
+Expected initial records:
+
+[ {“id”: 101, “name”: “Roji”}, {“id”: 102, “name”: “Akshaya”}]
+
+You can also test POST:
+
+curl -X POST http://localhost:5001/students
+-H “Content-Type: application/json”
+-d ‘{“id”:103,“name”:“Divya”}’
+
+STEP 10: View container logs if needed
+
+docker logs student-container
+
+STEP 11: Stop and remove the container
+
+docker stop student-container docker rm student-container
+
+Optional: remove the image after the practical:
+
+docker rmi student-app
+
+QUESTION 3 COMPLETED
+
+============================================================ QUESTION 4
+– KUBERNETES DEPLOYMENT USING deployment.yaml
+============================================================
+
+AIM
+
+Create and configure a Kubernetes Deployment using a deployment.yaml
+file.
+
+IMPORTANT: Return to the Killercoda Kubernetes playground. The terminal
+should be connected to the Kubernetes control plane.
+
+STEP 1: Check kubectl
+
+kubectl version –client
+
+STEP 2: Check cluster nodes
+
+kubectl get nodes
+
+Continue when the node status is Ready.
+
+STEP 3: Create deployment.yaml
+
+You can create this file in the current home directory:
+
+nano deployment.yaml
+
+Paste the following YAML. Indentation matters; use spaces, not tabs.
+
+  -----------------------
+  FILE: deployment.yaml
+  -----------------------
+
+apiVersion: apps/v1 kind: Deployment metadata: name: student-deployment
+spec: replicas: 2 selector: matchLabels: app: student template:
+metadata: labels: app: student spec: containers: - name:
+student-container image: nginx ports: - containerPort: 80
+
+  ------------------------
+  END OF deployment.yaml
+  ------------------------
+
+Save with Ctrl + O, Enter, Ctrl + X.
+
+STEP 4: Verify the file
+
+cat deployment.yaml
+
+STEP 5: Apply the deployment
+
+kubectl apply -f deployment.yaml
+
+Expected:
+
+deployment.apps/student-deployment created
+
+STEP 6: Check the deployment
+
+kubectl get deployments
+
+Wait until READY shows 2/2.
+
+STEP 7: Check Pods
+
+kubectl get pods
+
+Wait until both Pods show Running and READY 1/1.
+
+If they are not ready immediately, run kubectl get pods again after a
+short wait. If a Pod fails, inspect it using:
+
+kubectl describe pods
+
+STEP 8: Describe the deployment
+
+kubectl describe deployment student-deployment
+
+STEP 9: View all related resources
+
+kubectl get all
+
+STEP 10: Optional cleanup
+
+kubectl delete -f deployment.yaml
+
+QUESTION 4 COMPLETED
+
+============================================================ FINAL SET 1
+CHECKLIST ============================================================
+
+QUESTION 1 – PYTHON BACKEND [ ] Created app.py [ ] Installed Flask [ ]
+Started Flask server [ ] Tested CREATE (POST) [ ] Tested READ (GET) [ ]
+Tested UPDATE (PUT) [ ] Tested DELETE (DELETE)
+
+QUESTION 2 – GIT AND GITHUB [ ] Configured Git username and email [ ]
+Initialized Git repository [ ] Created .gitignore [ ] Added files using
+git add [ ] Committed files [ ] Created/connected GitHub repository [ ]
+Pushed code to GitHub
+
+QUESTION 3 – DOCKER [ ] Created requirements.txt [ ] Created Dockerfile
+[ ] Built student-app image [ ] Ran student-container [ ] Verified with
+docker ps [ ] Tested the Flask endpoint using curl [ ] Stopped and
+removed the container
+
+QUESTION 4 – KUBERNETES [ ] Checked Kubernetes nodes [ ] Created
+deployment.yaml [ ] Applied deployment [ ] Verified deployment replicas
+[ ] Verified two running Pods [ ] Described deployment
+
+============================================================ IMPORTANT
+COMMANDS – QUICK REVISION
+============================================================
+
+PYTHON: python app.py
+
+GIT: git init git status git add . git commit -m “message” git branch -M
+main git push -u origin main
+
+DOCKER: docker –version docker build -t student-app . docker images
+docker run -d -p 5001:5000 –name student-container student-app docker ps
+docker logs student-container docker stop student-container docker rm
+student-container
+
+KUBERNETES: kubectl get nodes kubectl apply -f deployment.yaml kubectl
+get deployments kubectl get pods kubectl describe deployment
+student-deployment kubectl get all kubectl delete -f deployment.yaml
+
+END OF SET 1
