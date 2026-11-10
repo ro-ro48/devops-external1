@@ -1,0 +1,589 @@
+SET 3 – DEVOPS PRACTICAL GUIDE
+
+GitHub Repository: https://github.com/ro-ro48/devops-external1
+
+Platform: Killercoda Kubernetes Playground (Ubuntu terminal) + Jenkins +
+GitHub Actions
+
+IMPORTANT WORKING RULES
+
+1.  Use the Killercoda terminal for Linux commands.
+2.  Use the Jenkins browser page to create and run Jenkins jobs.
+3.  Use the GitHub browser page to create and verify GitHub Actions.
+4.  Do not run localhost:8080 in your laptop browser. Jenkins runs
+    inside Killercoda. Open Jenkins using Killercoda’s exposed port 8080
+    URL.
+5.  The repository already exists. Do not clone it again if it is
+    already cloned.
+6.  Repository root used in this guide:
+    /root/set3-devops/devops-external1
+7.  Keep Week 1 and Set 2 files untouched. Set 3 files are kept in
+    set3/.
+8.  Do not commit the virtual environment folder (venv/).
+
+============================================================ INITIAL
+SETUP – KILLERCODA TERMINAL
+============================================================
+
+A. Go to the cloned repository root:
+
+    cd /root/set3-devops/devops-external1
+    pwd
+    ls -la
+
+B. Install required packages (run if not already installed):
+
+    apt-get update
+    apt-get install -y git python3.12-venv
+
+If the Python 3.12 package is unavailable, use:
+
+    apt-get install -y python3-venv
+
+C. Create the Set 3 directories:
+
+    mkdir -p set3
+    mkdir -p .github/workflows
+
+============================================================ QUESTION 4
+– PYTHON AUTOMATED TESTING USING PYTEST
+============================================================
+
+Aim: Create a Python application and automate its testing using Pytest.
+
+Where to run: Killercoda terminal, inside the repository’s set3/ folder.
+
+A. Enter the Set 3 folder:
+
+    cd /root/set3-devops/devops-external1/set3
+
+B. Create app.py:
+
+    cat > app.py <<'EOF'
+    def add(a, b):
+        return a + b
+
+    def subtract(a, b):
+        return a - b
+
+    def multiply(a, b):
+        return a * b
+
+    def divide(a, b):
+        if b == 0:
+            raise ValueError("Cannot divide by zero")
+        return a / b
+    EOF
+
+C. Create test_app.py:
+
+    cat > test_app.py <<'EOF'
+    import pytest
+    from app import add, subtract, multiply, divide
+
+    def test_add():
+        assert add(10, 5) == 15
+
+    def test_subtract():
+        assert subtract(10, 5) == 5
+
+    def test_multiply():
+        assert multiply(10, 5) == 50
+
+    def test_divide():
+        assert divide(10, 5) == 2
+
+    def test_divide_by_zero():
+        with pytest.raises(ValueError):
+            divide(10, 0)
+    EOF
+
+D. Create requirements.txt:
+
+    echo "pytest" > requirements.txt
+
+E. Create .gitignore so the virtual environment is not uploaded:
+
+    cat > .gitignore <<'EOF'
+    venv/
+    __pycache__/
+    .pytest_cache/
+    *.pyc
+    test-results.xml
+    EOF
+
+F. Create and activate virtual environment:
+
+    python3 -m venv venv
+    source venv/bin/activate
+
+If python3 -m venv venv reports that ensurepip/venv is unavailable,
+install the venv package first, then retry:
+
+    apt-get update
+    apt-get install -y python3.12-venv
+    rm -rf venv
+    python3 -m venv venv
+    source venv/bin/activate
+
+G. Install dependencies:
+
+    pip install --upgrade pip
+    pip install -r requirements.txt
+
+H. Run automated tests:
+
+    pytest -v
+
+Expected result:
+
+    test_app.py::test_add PASSED
+    test_app.py::test_subtract PASSED
+    test_app.py::test_multiply PASSED
+    test_app.py::test_divide PASSED
+    test_app.py::test_divide_by_zero PASSED
+
+    5 passed
+
+I. Optional JUnit-style test report:
+
+    pytest -v --junitxml=test-results.xml
+
+Question 4 is complete when all five tests pass.
+
+============================================================ QUESTION 1
+– JENKINS FREESTYLE JOB
+============================================================
+
+Aim: Create a Jenkins Freestyle Job that obtains source code from GitHub
+and runs the Python automated tests.
+
+PART A – Create the build script
+
+Where to run: Killercoda terminal, inside the repository’s set3/ folder.
+
+    cd /root/set3-devops/devops-external1/set3
+
+Create freestyle-build.sh:
+
+    cat > freestyle-build.sh <<'EOF'
+    #!/bin/bash
+    set -e
+
+    echo "Starting Jenkins Freestyle Job"
+
+    python3 -m venv venv
+    source venv/bin/activate
+
+    pip install --upgrade pip
+    pip install -r requirements.txt
+
+    echo "Running Python Tests"
+    pytest -v
+
+    echo "Jenkins Freestyle Job Completed Successfully"
+    EOF
+
+Make executable:
+
+    chmod +x freestyle-build.sh
+
+Check files:
+
+    ls -la
+
+The folder should contain: app.py test_app.py requirements.txt
+freestyle-build.sh .gitignore
+
+PART B – Commit and push Set 3 files
+
+Where to run: Killercoda terminal, from repository root.
+
+    cd /root/set3-devops/devops-external1
+
+Configure Git identity once (use your own GitHub email):
+
+    git config --global user.name "YOUR_GITHUB_USERNAME"
+    git config --global user.email "YOUR_GITHUB_EMAIL"
+
+Add and commit:
+
+    git add set3
+    git commit -m "Add Set 3 Python application and tests"
+    git push origin main
+
+If Git says “nothing to commit”, check git status; the files may already
+be committed. Confirm the files are visible in the GitHub repository.
+
+PART C – Start Jenkins in Killercoda
+
+Check Docker:
+
+    docker --version
+    docker info
+
+Start Jenkins only if it is not already running:
+
+    docker ps
+
+If a Jenkins container is already running, do not create a second
+container. If it is not running, use:
+
+    docker run -d \
+      --name jenkins \
+      -p 8080:8080 \
+      -p 50000:50000 \
+      -u root \
+      -v jenkins_home:/var/jenkins_home \
+      jenkins/jenkins:lts
+
+Check:
+
+    docker ps
+    docker logs -f jenkins
+
+When Jenkins has finished starting, press Ctrl+C to leave the log
+display. This does not stop the Jenkins container.
+
+Install Git and Python inside the Jenkins container:
+
+    docker exec -u root jenkins bash -c \
+    "apt-get update && apt-get install -y git python3 python3-venv python3-pip"
+
+Check:
+
+    docker exec jenkins git --version
+    docker exec jenkins python3 --version
+
+Get the initial Jenkins administrator password:
+
+    docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+
+Run this command in a Killercoda terminal tab, NOT in the Jenkins
+browser. Copy the displayed password and paste it into the Jenkins
+Unlock page.
+
+PART D – Open Jenkins
+
+Do NOT open http://localhost:8080 on your laptop. Jenkins is running
+inside the remote Killercoda environment.
+
+In Killercoda, use the exposed-port / Traffic / Ports option and expose
+port 8080. Open the generated Killercoda URL in your browser.
+
+On the Unlock Jenkins page: 1. Paste the initial administrator password.
+2. Click Continue. 3. Select Install suggested plugins. 4. Wait for
+installation. 5. Create an administrator account and password. 6. Click
+Save and Finish, then Start using Jenkins.
+
+PART E – Create Freestyle Job
+
+In Jenkins Dashboard: 1. Click New Item. 2. Item name:
+GitHub-Freestyle-Job 3. Select Freestyle project. 4. Click OK.
+
+Source Code Management: Select Git
+
+Repository URL: https://github.com/ro-ro48/devops-external1.git
+
+Branch Specifier: */main
+
+Build Steps: 1. Click Add build step. 2. Select Execute shell. 3. Paste:
+
+    cd set3
+    bash freestyle-build.sh
+
+4.  Click Save.
+
+Run the job: 1. Open GitHub-Freestyle-Job. 2. Click Build Now. 3. Open
+the latest build number. 4. Click Console Output.
+
+Expected ending:
+
+    5 passed
+    Jenkins Freestyle Job Completed Successfully
+    Finished: SUCCESS
+
+If Console Output says: cd: can’t cd to set3
+
+Check that the set3/ folder is committed and pushed to GitHub.
+
+If Console Output says: Could not open requirements file:
+requirements.txt
+
+Check that set3/requirements.txt exists in GitHub. Create and push it:
+
+    cd /root/set3-devops/devops-external1/set3
+    echo "pytest" > requirements.txt
+    cd ..
+    git add set3/requirements.txt
+    git commit -m "Add requirements file for Jenkins"
+    git push origin main
+
+Then click Build Now again.
+
+============================================================ QUESTION 2
+– JENKINS CI/CD PIPELINE
+============================================================
+
+Aim: Implement a Jenkins Pipeline with checkout, dependency
+installation, testing, and a demonstration deployment stage.
+
+PART A – Create Jenkinsfile
+
+Where to run: Killercoda terminal, from repository root.
+
+    cd /root/set3-devops/devops-external1
+
+Create set3/Jenkinsfile:
+
+    cat > set3/Jenkinsfile <<'EOF'
+    pipeline {
+        agent any
+
+        stages {
+            stage('Checkout') {
+                steps {
+                    echo 'Fetching source code from GitHub'
+                    checkout scm
+                }
+            }
+
+            stage('Install Dependencies') {
+                steps {
+                    dir('set3') {
+                        sh '''
+                        python3 -m venv venv
+                        . venv/bin/activate
+                        pip install --upgrade pip
+                        pip install -r requirements.txt
+                        '''
+                    }
+                }
+            }
+
+            stage('Automated Testing') {
+                steps {
+                    dir('set3') {
+                        sh '''
+                        . venv/bin/activate
+                        pytest -v --junitxml=test-results.xml
+                        '''
+                    }
+                }
+            }
+
+            stage('Deployment') {
+                steps {
+                    echo 'All tests passed successfully'
+                    echo 'Application deployment completed'
+                }
+            }
+        }
+
+        post {
+            always {
+                junit allowEmptyResults: true,
+                      testResults: 'set3/test-results.xml'
+            }
+
+            success {
+                echo 'CI/CD Pipeline executed successfully'
+            }
+
+            failure {
+                echo 'CI/CD Pipeline failed'
+            }
+        }
+    }
+    EOF
+
+PART B – Commit and push Jenkinsfile
+
+    git add set3/Jenkinsfile
+    git commit -m "Add Jenkins CI CD pipeline"
+    git push origin main
+
+If nothing to commit, verify that set3/Jenkinsfile is already present in
+GitHub.
+
+PART C – Create Pipeline Job in Jenkins
+
+In Jenkins Dashboard: 1. Click New Item. 2. Name: Python-CICD-Pipeline
+3. Select Pipeline. 4. Click OK. 5. Scroll to the Pipeline section. 6.
+Configure:
+
+    Definition: Pipeline script from SCM
+    SCM: Git
+    Repository URL: https://github.com/ro-ro48/devops-external1.git
+    Credentials: None (public repository)
+    Branch Specifier: */main
+    Script Path: set3/Jenkinsfile
+
+7.  Click Save.
+
+PART D – Run the Pipeline
+
+1.  Open Python-CICD-Pipeline.
+2.  Click Build Now.
+3.  Open the latest build.
+4.  Click Console Output.
+
+Expected stages: Checkout Install Dependencies Automated Testing
+Deployment
+
+Expected test result: 5 passed
+
+Expected ending: CI/CD Pipeline executed successfully Finished: SUCCESS
+
+Note: The Deployment stage in this practical is a demonstration stage.
+It prints a deployment-completed message; it does not deploy to a
+production server.
+
+============================================================ QUESTION 3
+– GITHUB ACTIONS
+============================================================
+
+Aim: Create and execute a GitHub Actions workflow that automatically
+runs Python tests.
+
+IMPORTANT: The workflow file must be in the repository-root
+.github/workflows/ folder, NOT inside set3/.github/.
+
+PART A – Create workflow directory
+
+Where to run: Killercoda terminal, from repository root.
+
+    cd /root/set3-devops/devops-external1
+    mkdir -p .github/workflows
+
+PART B – Create python-ci.yml
+
+    cat > .github/workflows/python-ci.yml <<'EOF'
+    name: Python CI Workflow
+
+    on:
+      push:
+        branches: [main]
+
+      pull_request:
+        branches: [main]
+
+    jobs:
+      test:
+        runs-on: ubuntu-latest
+
+        steps:
+          - name: Checkout Repository
+            uses: actions/checkout@v4
+
+          - name: Setup Python
+            uses: actions/setup-python@v5
+            with:
+              python-version: '3.12'
+
+          - name: Install Dependencies
+            run: |
+              cd set3
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+
+          - name: Run Automated Tests
+            run: |
+              cd set3
+              pytest -v
+    EOF
+
+PART C – Verify and push workflow
+
+    cat .github/workflows/python-ci.yml
+    git add .github/workflows/python-ci.yml
+    git commit -m "Add GitHub Actions Python CI workflow"
+    git push origin main
+
+If nothing to commit, check that the workflow file is already committed.
+
+PART D – Verify on GitHub website
+
+1.  Open: https://github.com/ro-ro48/devops-external1
+2.  Click Actions.
+3.  Select Python CI Workflow.
+4.  Open the latest workflow run.
+5.  Click the test job.
+6.  Verify these steps:
+    -   Checkout Repository
+    -   Setup Python
+    -   Install Dependencies
+    -   Run Automated Tests
+
+Expected result: 5 passed
+
+A green check mark means the workflow succeeded. If the run is Queued,
+wait for it to start before judging the result. If it fails, open the
+failed step and inspect its error.
+
+============================================================ FINAL
+VERIFICATION – ALL FOUR QUESTIONS
+============================================================
+
+Question 1 – Jenkins Freestyle Job: Jenkins job: GitHub-Freestyle-Job
+Expected: Finished: SUCCESS
+
+Question 2 – Jenkins CI/CD Pipeline: Jenkins job: Python-CICD-Pipeline
+Expected: all four stages successful; Finished: SUCCESS
+
+Question 3 – GitHub Actions: Workflow: Python CI Workflow Expected:
+green check mark; 5 tests passed
+
+Question 4 – Python Automated Testing: Command: cd
+/root/set3-devops/devops-external1/set3 source venv/bin/activate pytest
+-v Expected: 5 passed
+
+============================================================ SCREENSHOTS
+TO SAVE FOR PRACTICAL RECORD
+============================================================
+
+1.  Q1: Jenkins Freestyle Job Console Output showing 5 passed and
+    Finished: SUCCESS.
+2.  Q2: Jenkins Pipeline stage view and/or Console Output showing
+    Finished: SUCCESS.
+3.  Q3: GitHub Actions successful workflow run with green check mark.
+4.  Q4: Killercoda terminal showing Pytest with 5 passed.
+
+============================================================
+TROUBLESHOOTING
+============================================================
+
+1.  Python virtual environment creation fails: Install the matching venv
+    package: apt-get update apt-get install -y python3.12-venv If using
+    another Python version, install its matching venv package.
+
+2.  docker: command not found: The current Killercoda scenario may not
+    provide Docker. Do not continue with Docker commands unless Docker
+    is available.
+
+3.  Jenkins browser says localhost refused: Do not use laptop localhost.
+    Expose Killercoda port 8080 and open the generated Killercoda URL.
+
+4.  Jenkins cannot find set3: Confirm set3/ is committed and pushed to
+    the main branch.
+
+5.  Jenkins cannot find requirements.txt: Confirm set3/requirements.txt
+    is committed and pushed.
+
+6.  Git says “Author identity unknown”: Configure Git once: git config
+    –global user.name “YOUR_GITHUB_USERNAME” git config –global
+    user.email “YOUR_GITHUB_EMAIL”
+
+7.  Git push asks for authentication: Authenticate using an authorized
+    GitHub credential or token. Never paste a password or token into a
+    public file or practical README.
+
+8.  Git says “nothing to commit”: Run: git status The files may already
+    be committed. Verify them on GitHub.
+
+9.  GitHub Actions fails: Open Actions, select the failed run, open the
+    test job, and inspect the first failed step. Confirm
+    set3/requirements.txt, set3/app.py, and set3/test_app.py exist in
+    the repository.
+
+END OF SET 3 PRACTICAL GUIDE
