@@ -1,0 +1,792 @@
+SET 2 - COMPLETE PRACTICAL GUIDE
+Docker with Python Flask | Kubernetes | ConfigMap | GitHub Basics
+
+IMPORTANT: WHERE TO DO EACH PRACTICAL
+=====================================
+
+Use Killercoda in your browser: https://killercoda.com/
+
+Practical 1 - Docker with Python Flask:
+  Use a Killercoda Docker playground/scenario that provides a Docker
+  command-line environment. Do NOT use the Kubernetes-only playground
+  unless it explicitly provides a working Docker daemon.
+  If a Docker playground is unavailable, do this practical in VS Code
+  terminal on Windows with Docker Desktop running.
+
+Practical 2 - Kubernetes Container Orchestration:
+  Use a Killercoda Kubernetes playground/scenario.
+  Run kubectl commands in the Killercoda terminal.
+
+Practical 3 - Kubernetes ConfigMap:
+  Use the SAME Killercoda Kubernetes playground.
+  Run kubectl commands in the Killercoda terminal.
+
+Practical 4 - GitHub Basics:
+  Use the Killercoda terminal if Git is installed, or VS Code/PowerShell.
+  Create the remote repository in your browser at https://github.com/.
+
+GENERAL KILLERCODA INSTRUCTIONS
+===============================
+1. Open https://killercoda.com/
+2. Sign in if required.
+3. Search for Docker or Kubernetes playground/scenarios.
+4. Start the relevant scenario.
+5. Wait until the terminal is ready.
+6. Type or paste the commands in that scenario's terminal.
+7. Docker and Kubernetes scenarios may be separate environments.
+   Files created in one scenario may NOT exist in another.
+8. If a scenario expires or resets, start it again and recreate the files.
+
+============================================================
+PRACTICAL 1 - DOCKER WITH PYTHON FLASK
+============================================================
+
+AIM:
+Create a local Python Flask application, build a Docker image,
+run a container and test the application.
+
+WHERE TO DO:
+Killercoda Docker playground terminal.
+If Docker commands fail because Docker Engine is unavailable, use
+VS Code terminal on Windows with Docker Desktop running.
+
+STEP 1 - CHECK DOCKER
+--------------------
+docker --version
+docker info
+
+If `docker info` reports that it cannot connect to the daemon,
+the selected environment does not have a working Docker daemon.
+Use a Docker-enabled Killercoda scenario or Docker Desktop.
+
+STEP 2 - CREATE PROJECT FOLDER
+------------------------------
+mkdir -p docker-flask
+cd docker-flask
+
+STEP 3 - CREATE app.py
+----------------------
+Run this complete command in the terminal:
+
+cat > app.py <<'EOF'
+from flask import Flask, jsonify
+
+app = Flask(__name__)
+
+students = [
+    {"id": 1, "name": "Roji", "branch": "CSE"},
+    {"id": 2, "name": "Akshaya", "branch": "CSE"},
+    {"id": 3, "name": "Divya", "branch": "CSE"}
+]
+
+@app.route("/")
+def home():
+    return "Welcome to Flask Docker Application!"
+
+@app.route("/students")
+def get_students():
+    return jsonify(students)
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "Application is running"})
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
+EOF
+
+STEP 4 - CREATE requirements.txt
+--------------------------------
+cat > requirements.txt <<'EOF'
+Flask==3.1.2
+EOF
+
+STEP 5 - CREATE Dockerfile
+--------------------------
+The filename must be exactly Dockerfile, with no extension.
+
+cat > Dockerfile <<'EOF'
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 5000
+
+CMD ["python", "app.py"]
+EOF
+
+STEP 6 - CREATE .dockerignore
+-----------------------------
+cat > .dockerignore <<'EOF'
+__pycache__/
+*.pyc
+venv/
+.env
+.git/
+EOF
+
+STEP 7 - CHECK FILES
+--------------------
+ls -la
+
+You should see:
+app.py
+requirements.txt
+Dockerfile
+.dockerignore
+
+STEP 8 - BUILD THE IMAGE
+------------------------
+docker build -t student-app .
+
+The dot at the end is important. It means the current directory
+is the Docker build context.
+
+STEP 9 - CHECK THE IMAGE
+------------------------
+docker images
+
+You should see an image named student-app.
+
+STEP 10 - RUN THE CONTAINER
+---------------------------
+docker run -d -p 5001:5000 --name student-container student-app
+
+STEP 11 - CHECK THE CONTAINER
+-----------------------------
+docker ps
+
+STEP 12 - TEST THE APPLICATION
+------------------------------
+curl http://localhost:5001
+curl http://localhost:5001/students
+curl http://localhost:5001/health
+
+Expected responses:
+Home:
+Welcome to Flask Docker Application!
+
+Students:
+A JSON array containing three student records.
+
+Health:
+{"status":"Application is running"}
+
+If the Killercoda scenario provides a port preview/open-port feature,
+open port 5001 in that feature to view the web page.
+
+STEP 13 - CONTAINER MANAGEMENT
+------------------------------
+docker logs student-container
+docker stop student-container
+docker start student-container
+docker restart student-container
+docker rm -f student-container
+
+To remove the image after removing the container:
+docker rmi student-app
+
+NOTE:
+If you remove the container before checking logs, logs will no
+longer be available. Check logs first.
+
+============================================================
+PRACTICAL 2 - KUBERNETES CONTAINER ORCHESTRATION
+============================================================
+
+AIM:
+Deploy an application using Kubernetes and manage Pods,
+Deployments and Services.
+
+WHERE TO DO:
+Killercoda Kubernetes playground terminal.
+Start a Kubernetes scenario that provides a working cluster.
+Do not run these commands in a Docker-only playground.
+
+STEP 1 - CHECK KUBECTL AND CLUSTER
+----------------------------------
+kubectl version --client
+kubectl get nodes
+
+Wait until the node status is Ready.
+If `kubectl get nodes` fails, the Kubernetes cluster is not ready
+or the scenario is not a Kubernetes environment.
+
+STEP 2 - CREATE PROJECT FOLDER
+------------------------------
+mkdir -p ~/kubernetes-practical
+cd ~/kubernetes-practical
+
+STEP 3 - CREATE deployment.yaml
+-------------------------------
+cat > deployment.yaml <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: student-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: student
+  template:
+    metadata:
+      labels:
+        app: student
+    spec:
+      containers:
+        - name: student-container
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+EOF
+
+STEP 4 - CREATE THE DEPLOYMENT
+------------------------------
+kubectl apply -f deployment.yaml
+
+Expected:
+deployment.apps/student-deployment created
+
+STEP 5 - CHECK DEPLOYMENT
+-------------------------
+kubectl get deployments
+kubectl describe deployment student-deployment
+
+STEP 6 - CHECK PODS
+-------------------
+kubectl get pods
+kubectl get pods -o wide
+
+Wait until all three Pods show Running and Ready.
+
+STEP 7 - SCALE THE DEPLOYMENT
+-----------------------------
+kubectl scale deployment student-deployment --replicas=5
+
+Check:
+kubectl get deployments
+kubectl get pods
+
+There should now be five Pods.
+
+STEP 8 - EXPOSE THE DEPLOYMENT
+------------------------------
+kubectl expose deployment student-deployment --type=NodePort --port=80
+
+Check the Service:
+kubectl get services
+kubectl describe service student-deployment
+
+STEP 9 - TEST THE SERVICE
+-------------------------
+The exact way to open a NodePort depends on the Killercoda scenario.
+First inspect the service and note its NodePort:
+
+kubectl get service student-deployment
+
+A simple test from inside the cluster is:
+
+kubectl run curl-test --image=curlimages/curl:latest --restart=Never -it --rm -- sh
+
+At the prompt inside the temporary test Pod, run:
+curl http://student-deployment
+
+Then type:
+exit
+
+If the interactive command does not work in the scenario, use:
+kubectl run curl-test --image=curlimages/curl:latest --restart=Never --command -- sleep 300
+kubectl exec curl-test -- curl http://student-deployment
+kubectl delete pod curl-test
+
+Expected:
+Nginx welcome page HTML.
+
+STEP 10 - VIEW EVENTS
+---------------------
+kubectl get events --sort-by=.metadata.creationTimestamp
+
+STEP 11 - DELETE RESOURCES
+--------------------------
+kubectl delete service student-deployment
+kubectl delete deployment student-deployment
+
+Verify:
+kubectl get deployments
+kubectl get pods
+kubectl get services
+
+============================================================
+PRACTICAL 3 - KUBERNETES CONFIGMAP
+============================================================
+
+AIM:
+Create a ConfigMap and use its values in a Kubernetes application
+as environment variables and as a mounted file.
+
+WHERE TO DO:
+Killercoda Kubernetes playground terminal.
+Use the Kubernetes cluster from Practical 2 if it is still active.
+If it has reset, start a new Kubernetes scenario and check:
+kubectl get nodes
+
+STEP 1 - CREATE PROJECT FOLDER
+------------------------------
+mkdir -p ~/configmap-practical
+cd ~/configmap-practical
+
+STEP 2 - CREATE configmap.yaml
+------------------------------
+cat > configmap.yaml <<'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: student-config
+data:
+  APP_NAME: "Student Management System"
+  APP_ENV: "Development"
+  APP_VERSION: "1.0"
+  WELCOME_MESSAGE: "Welcome to Kubernetes ConfigMap"
+EOF
+
+STEP 3 - CREATE THE CONFIGMAP
+-----------------------------
+kubectl apply -f configmap.yaml
+
+STEP 4 - VERIFY CONFIGMAP
+-------------------------
+kubectl get configmaps
+kubectl describe configmap student-config
+kubectl get configmap student-config -o yaml
+
+STEP 5 - CREATE deployment.yaml
+-------------------------------
+cat > deployment.yaml <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: configmap-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: configmap-app
+  template:
+    metadata:
+      labels:
+        app: configmap-app
+    spec:
+      containers:
+        - name: nginx-container
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: student-config
+          volumeMounts:
+            - name: config-volume
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+      volumes:
+        - name: config-volume
+          configMap:
+            name: student-config
+            items:
+              - key: WELCOME_MESSAGE
+                path: index.html
+EOF
+
+STEP 6 - DEPLOY APPLICATION
+---------------------------
+kubectl apply -f deployment.yaml
+
+STEP 7 - CHECK DEPLOYMENT AND PODS
+----------------------------------
+kubectl get deployments
+kubectl get pods
+
+Wait until both Pods show Running and Ready.
+
+STEP 8 - CHECK ENVIRONMENT VARIABLE
+-----------------------------------
+kubectl get pods
+
+Copy one Pod name from the output. Replace POD_NAME below
+with the actual name (do not type the angle brackets):
+
+kubectl exec POD_NAME -- printenv APP_NAME
+
+Expected:
+Student Management System
+
+Check another variable:
+kubectl exec POD_NAME -- printenv APP_ENV
+
+Expected:
+Development
+
+STEP 9 - TEST THE MOUNTED CONFIGURATION
+---------------------------------------
+Run port forwarding:
+
+kubectl port-forward deployment/configmap-deployment 8080:80
+
+Keep this command running in this terminal.
+Open a second terminal in the same Killercoda scenario and run:
+
+curl http://localhost:8080
+
+Expected:
+Welcome to Kubernetes ConfigMap
+
+If the scenario offers a port preview, open port 8080 there.
+
+Stop port forwarding with Ctrl+C when finished.
+
+STEP 10 - UPDATE THE CONFIGMAP
+------------------------------
+Edit configmap.yaml and change the WELCOME_MESSAGE value to:
+
+WELCOME_MESSAGE: "Updated Configuration Successfully"
+
+Apply the updated ConfigMap:
+
+kubectl apply -f configmap.yaml
+
+Restart the Deployment:
+
+kubectl rollout restart deployment configmap-deployment
+
+Wait for rollout:
+
+kubectl rollout status deployment configmap-deployment
+
+Check Pods:
+
+kubectl get pods
+
+Test again using port-forward in one terminal:
+kubectl port-forward deployment/configmap-deployment 8080:80
+
+In a second terminal:
+curl http://localhost:8080
+
+Expected:
+Updated Configuration Successfully
+
+IMPORTANT:
+ConfigMap values mounted as files update eventually, but restarting
+the Deployment makes the test predictable. ConfigMap values injected
+as environment variables do not change inside already-running
+containers; restart is required for new values to be loaded.
+
+STEP 11 - DELETE RESOURCES
+--------------------------
+kubectl delete deployment configmap-deployment
+kubectl delete configmap student-config
+
+Verify:
+kubectl get deployments
+kubectl get configmaps
+
+============================================================
+PRACTICAL 4 - GITHUB BASICS
+============================================================
+
+AIM:
+Perform basic Git and GitHub operations: initialize a repository,
+track files, stage, commit, create a remote repository, push,
+branch, pull and clone.
+
+WHERE TO DO:
+Use the Killercoda terminal if Git is installed.
+Otherwise use VS Code terminal or Windows PowerShell.
+Use a browser to create the GitHub repository.
+
+STEP 1 - CHECK GIT
+------------------
+git --version
+
+If Git is not installed in Killercoda, use VS Code/PowerShell
+or a Git-enabled scenario.
+
+STEP 2 - CONFIGURE GIT
+----------------------
+Replace the sample details with your own GitHub name and email:
+
+git config --global user.name "Your Name"
+git config --global user.email "your-email@example.com"
+
+Check:
+git config --global --list
+
+STEP 3 - CREATE PROJECT
+-----------------------
+mkdir -p ~/github-basics
+cd ~/github-basics
+
+STEP 4 - CREATE app.py
+----------------------
+cat > app.py <<'EOF'
+print("Welcome to GitHub Basics Practical")
+
+student_name = "Roji"
+branch = "CSE"
+
+print("Student Name:", student_name)
+print("Branch:", branch)
+
+print("GitHub operations completed successfully!")
+EOF
+
+STEP 5 - CREATE README.md
+-------------------------
+cat > README.md <<'EOF'
+# GitHub Basics Practical
+
+## Aim
+To understand basic Git and GitHub operations.
+
+## Description
+This project demonstrates Git initialization,
+file tracking, staging, committing and pushing
+code to a GitHub repository.
+
+## Technologies Used
+- Python
+- Git
+- GitHub
+
+## Execution
+python app.py
+EOF
+
+STEP 6 - RUN THE PYTHON PROGRAM (OPTIONAL)
+------------------------------------------
+python3 app.py
+
+If Python is not installed in the selected terminal,
+skip this optional test. Git operations do not require Python.
+
+STEP 7 - INITIALIZE GIT
+-----------------------
+git init
+
+STEP 8 - CHECK STATUS
+---------------------
+git status
+
+STEP 9 - STAGE FILES
+--------------------
+git add .
+
+Check:
+git status
+
+STEP 10 - COMMIT FILES
+----------------------
+git commit -m "Initial commit"
+
+STEP 11 - CREATE GITHUB REPOSITORY IN BROWSER
+---------------------------------------------
+1. Open https://github.com/
+2. Sign in to your GitHub account.
+3. Click the + icon and choose New repository.
+4. Enter repository name: github-basics
+5. Select Public or Private.
+6. Do NOT select Add a README file because README.md
+   has already been created locally.
+7. Click Create repository.
+8. Copy the HTTPS repository URL.
+
+It will look like:
+https://github.com/YOUR_USERNAME/github-basics.git
+
+STEP 12 - CONNECT LOCAL REPOSITORY
+----------------------------------
+Rename the current branch:
+git branch -M main
+
+Add the remote. Replace YOUR_USERNAME:
+git remote add origin https://github.com/YOUR_USERNAME/github-basics.git
+
+Check:
+git remote -v
+
+STEP 13 - PUSH TO GITHUB
+------------------------
+git push -u origin main
+
+If GitHub asks you to authenticate, follow the browser sign-in
+or token process offered by Git. A normal GitHub account password
+is not accepted for HTTPS Git pushes.
+
+STEP 14 - ADD ANOTHER FILE AND PUSH AGAIN
+-----------------------------------------
+Create a file:
+
+cat > notes.txt <<'EOF'
+This file is added to demonstrate another Git commit.
+EOF
+
+Stage and commit:
+git add .
+git commit -m "Added notes file"
+
+Push:
+git push
+
+STEP 15 - VIEW COMMIT HISTORY
+-----------------------------
+git log --oneline
+
+STEP 16 - CREATE AND SWITCH BRANCH
+----------------------------------
+git branch feature
+git switch feature
+
+Create a change:
+echo "Feature branch practice" > feature.txt
+
+Stage and commit:
+git add .
+git commit -m "Added feature branch file"
+
+Switch back:
+git switch main
+
+STEP 17 - PULL LATEST CHANGES
+-----------------------------
+git pull origin main
+
+STEP 18 - CLONE REPOSITORY
+--------------------------
+Move to a different directory:
+cd ~
+
+Clone (replace YOUR_USERNAME):
+git clone https://github.com/YOUR_USERNAME/github-basics.git
+
+Enter cloned project:
+cd github-basics
+
+List files:
+ls
+
+NOTE:
+If you created a feature branch locally but did not push it,
+it will not appear on GitHub. To push it, use:
+git push -u origin feature
+
+============================================================
+COMMON ERRORS AND SOLUTIONS
+============================================================
+
+1. Docker: Cannot connect to the Docker daemon
+   Solution: You are probably in a terminal without Docker Engine.
+   Start a Docker-enabled Killercoda scenario or use Docker Desktop.
+
+2. Docker: port is already allocated
+   Solution: Choose another host port, for example:
+   docker run -d -p 5002:5000 --name student-container student-app
+   Then test http://localhost:5002.
+
+3. Kubernetes: kubectl get nodes fails
+   Solution: Start a Kubernetes Killercoda scenario and wait
+   until its cluster is ready.
+
+4. Kubernetes: ImagePullBackOff
+   Solution: Check internet/image access and inspect:
+   kubectl describe pod POD_NAME
+
+5. Kubernetes: Pod is not Running immediately
+   Solution: Wait and check:
+   kubectl get pods
+   kubectl describe pod POD_NAME
+
+6. ConfigMap not found
+   Solution: Create the ConfigMap before applying the Deployment:
+   kubectl apply -f configmap.yaml
+   kubectl apply -f deployment.yaml
+
+7. Git: remote origin already exists
+   Solution:
+   git remote -v
+   git remote set-url origin https://github.com/YOUR_USERNAME/github-basics.git
+
+8. Git: src refspec main does not match any
+   Solution: Make sure at least one commit exists:
+   git add .
+   git commit -m "Initial commit"
+   git branch -M main
+   git push -u origin main
+
+9. GitHub authentication failed
+   Solution: Use Git Credential Manager/browser sign-in or a
+   properly configured Personal Access Token. Never share tokens.
+
+============================================================
+FINAL VERIFICATION CHECKLIST
+============================================================
+
+PRACTICAL 1 - DOCKER
+[ ] Created app.py
+[ ] Created requirements.txt
+[ ] Created Dockerfile
+[ ] Created .dockerignore
+[ ] Built student-app image
+[ ] Ran student-container
+[ ] Tested home, students and health endpoints
+
+PRACTICAL 2 - KUBERNETES
+[ ] Checked Kubernetes node
+[ ] Created deployment.yaml
+[ ] Created Deployment
+[ ] Verified three Pods
+[ ] Scaled to five Pods
+[ ] Exposed Deployment using NodePort
+[ ] Tested Nginx service
+[ ] Deleted resources
+
+PRACTICAL 3 - CONFIGMAP
+[ ] Created configmap.yaml
+[ ] Created student-config ConfigMap
+[ ] Created configmap-deployment
+[ ] Verified two Pods
+[ ] Checked APP_NAME environment variable
+[ ] Tested mounted welcome message
+[ ] Updated ConfigMap
+[ ] Restarted Deployment
+[ ] Deleted resources
+
+PRACTICAL 4 - GITHUB
+[ ] Configured Git username and email
+[ ] Initialized Git repository
+[ ] Created app.py and README.md
+[ ] Staged and committed files
+[ ] Created GitHub repository
+[ ] Connected remote repository
+[ ] Pushed code to GitHub
+[ ] Created a branch
+[ ] Viewed commit history
+[ ] Cloned repository
+
+============================================================
+FINAL RESULT
+============================================================
+
+All four Set 2 practicals cover:
+1. Docker image creation and Flask container execution.
+2. Kubernetes Deployment, Pod management, scaling and Service.
+3. ConfigMap creation and application configuration.
+4. Git and GitHub version-control operations.
+
+END OF SET 2 PRACTICAL GUIDE
